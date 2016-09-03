@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Getopt::Long ();
+use File::Find ();
+use File::Spec;
+
+our %USAGE;
+
+$USAGE{freeze} = <<'___';
+Summary: freeze perl installation
+
+Usage: plenv freeze <version>
+ -h, --help     show this help
+___
+
+$USAGE{unfreeze} = <<'___';
+Summary: unfreeze perl installation
+
+Usage: plenv unfreeze <version>
+ -h, --help     show this help
+___
+
+
+sub new {
+    my $class = shift;
+    my $unfreeze = $0 =~ /unfreeze/ ? 1 : 0;
+    bless { unfreeze => $unfreeze }, $class;
+}
+
+sub show_help {
+    my $self = shift;
+    print $self->{unfreeze} ? $USAGE{unfreeze} : $USAGE{freeze};
+}
+
+sub parse_options {
+    my ($self, @argv) = @_;
+    my $parser = Getopt::Long::Parser->new(
+        config => [qw(no_auto_abbrev no_ignore_case)],
+    );
+    local @ARGV = @argv;
+    $parser->getoptions(
+        "h|help" => sub { $self->show_help; exit 0 },
+    ) or exit 1;
+    @ARGV or die "Missing <version> argument, try '$0 --help'\n";
+    $self->{versions} = \@ARGV;
+}
+
+sub collect {
+    my ($self, $root) = @_;
+    my (@file, @dir);
+    my $find = sub { -d $_ ? push @dir, $_ : push @file, $_ };
+    File::Find::find({wanted => $find, no_chdir => 1}, $root);
+    @dir = sort { length $b <=> length $a } @dir;
+    (\@file, \@dir);
+}
+
+sub freeze {
+    my ($self, $root) = @_;
+    my ($files, $dirs) = $self->collect($root);
+    for my $file (@$files) {
+        my $mode = -x $file ? 0555 : 0444;
+        chmod $mode, $file;
+    }
+    for my $dir (@$dirs) {
+        chmod 0555, $dir;
+    }
+}
+
+sub unfreeze {
+    my ($self, $root) = @_;
+    my ($files, $dirs) = $self->collect($root);
+    for my $dir (reverse @$dirs) {
+        chmod 0755, $dir;
+    }
+    for my $file (@$files) {
+        my $mode = -x $file ? 0755 : 0644;
+        chmod $mode, $file;
+    }
+}
+
+sub run {
+    my ($class, @argv) = @_;
+    my $self = $class->new;
+    $self->parse_options(@argv);
+    my $root = File::Spec->catdir($ENV{PLENV_ROOT} || "$ENV{HOME}/.plenv", "versions");
+    for my $version (@{$self->{versions}}) {
+        my $target = File::Spec->catdir($root, $version);
+        die "Missing version '$version', try `plenv versions`\n" unless -d $target;
+        local $| = 1;
+        if ($self->{unfreeze}) {
+            print "Unfreezing $version ...";
+            $self->unfreeze($target);
+        } else {
+            print "Freezing $version ...";
+            $self->freeze($target);
+        }
+        print " DONE\n";
+    }
+}
+
+__PACKAGE__->run(@ARGV) unless caller;
