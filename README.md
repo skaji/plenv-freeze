@@ -3,9 +3,9 @@
 This is a [plenv](https://github.com/tokuhirom/plenv) plugin,
 that freeze/unfreeze your perl installations.
 
-Sometimes, you want to keep a perl installation vanilla,
+Sometimes, you may want to keep a perl installation vanilla,
 which means you want to protect a perl installation against installation of CPAN modules.
-If so, this plugin may help you.
+If so, this plugin will help you.
 
 This idea was originated by miyagawa, and I heard this from songmu.
 See http://songmu.github.io/slides/gotandapm4/#6
