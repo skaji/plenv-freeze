@@ -1,26 +1,18 @@
 #!/usr/bin/env perl
+#
+# Summary: freeze/unfreeze perl installation
+#
+# Usage: plenv freeze   <version>
+#        plenv unfreeze <version>
+#
+#  -h, --help     show this help
+#  -l, --list     show perl versions with freezed or not
+#
 use strict;
 use warnings;
 use Getopt::Long ();
 use File::Find ();
 use File::Spec;
-
-our %USAGE;
-
-$USAGE{freeze} = <<'___';
-Summary: freeze perl installation
-
-Usage: plenv freeze <version>
- -h, --help     show this help
-___
-
-$USAGE{unfreeze} = <<'___';
-Summary: unfreeze perl installation
-
-Usage: plenv unfreeze <version>
- -h, --help     show this help
-___
-
 
 sub new {
     my $class = shift;
@@ -29,8 +21,12 @@ sub new {
 }
 
 sub show_help {
-    my $self = shift;
-    print $self->{unfreeze} ? $USAGE{unfreeze} : $USAGE{freeze};
+    open my $fh, "<", $0 or return;
+    scalar <$fh>;
+    while (<$fh>) {
+        s/^#// and print and next;
+        last;
+    }
 }
 
 sub parse_options {
@@ -41,9 +37,38 @@ sub parse_options {
     local @ARGV = @argv;
     $parser->getoptions(
         "h|help" => sub { $self->show_help; exit 0 },
+        "l|list" => sub { $self->show_versions; exit 0 },
     ) or exit 1;
     @ARGV or die "Missing <version> argument, try '$0 --help'\n";
     $self->{versions} = \@ARGV;
+}
+
+sub show_versions {
+    my $self = shift;
+    my $root = $ENV{PLENV_ROOT} || "$ENV{HOME}/.plenv";
+    my $vroot = File::Spec->catdir($root, "versions");
+    opendir my $dh, $vroot or die "$vroot: $!\n";
+    my @versions = grep { $_ ne "." and $_ ne ".." } readdir $dh;
+    my $current = sub {
+        my $file = File::Spec->catfile($root, "version");
+        return "" unless -f $file;
+        open my $fh, "<", $file or die "$file: $!\n";
+        my $current = <$fh>;
+        chomp $current;
+        $current;
+    }->();
+    my $is_freezed = sub {
+        my $version = shift;
+        my $dir = File::Spec->catdir($vroot, $version);
+        -d $dir and ! -w $dir;
+    };
+    my $freezed = -t STDOUT ? " \e[31mfreezed\e[m" : " freezed";
+    for my $version ("system", @versions) {
+        printf "%s %s%s\n",
+            $version eq $current ? "*" : " ",
+            $version,
+            $is_freezed->($version) ? $freezed : "";
+    }
 }
 
 sub collect {
