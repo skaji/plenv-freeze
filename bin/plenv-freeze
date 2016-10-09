@@ -16,8 +16,8 @@ use File::Spec;
 
 sub new {
     my $class = shift;
-    my $unfreeze = $0 =~ /unfreeze/ ? 1 : 0;
-    bless { unfreeze => $unfreeze }, $class;
+    my $name = $0 =~ /unfreeze$/ ? "unfreeze" : "freeze";
+    bless { name => $name }, $class;
 }
 
 sub show_help {
@@ -39,7 +39,7 @@ sub parse_options {
         "h|help" => sub { $self->show_help; exit 0 },
         "l|list" => sub { $self->show_versions; exit 0 },
     ) or exit 1;
-    @ARGV or die "Missing <version> argument, try '$0 --help'\n";
+    @ARGV or die "Missing <version> argument, try 'plenv $self->{name} --help'\n";
     $self->{versions} = \@ARGV;
 }
 
@@ -113,7 +113,7 @@ sub run {
         my $target = File::Spec->catdir($root, $version);
         die "Missing version '$version', try `plenv versions`\n" unless -d $target;
         local $| = 1;
-        if ($self->{unfreeze}) {
+        if ($self->{name} eq "unfreeze") {
             print "Unfreezing $version ...";
             $self->unfreeze($target);
         } else {
