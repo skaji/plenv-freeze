@@ -38,6 +38,7 @@ sub parse_options {
     $parser->getoptions(
         "h|help" => sub { $self->show_help; exit 0 },
         "l|list" => sub { $self->show_versions; exit 0 },
+        "complete" => sub { $self->show_completions; exit 0 },
     ) or exit 1;
     @ARGV or die "Missing <version> argument, try 'plenv $self->{name} --help'\n";
     $self->{versions} = \@ARGV;
@@ -69,6 +70,13 @@ sub show_versions {
             $version,
             $is_freezed->($version) ? $freezed : "";
     }
+}
+
+# Provide plenv completions (this line required for plenv-completions)
+sub show_completions {
+    shift;
+    print "system\n";
+    system "plenv-versions --bare";
 }
 
 sub collect {
