@@ -58,17 +58,12 @@ sub show_versions {
         chomp $current;
         $current;
     }->();
-    my $is_freezed = sub {
-        my $version = shift;
-        my $dir = File::Spec->catdir($vroot, $version);
-        -d $dir and ! -w $dir;
-    };
     my $freezed = -t STDOUT ? " \e[31mfreezed\e[m" : " freezed";
     for my $version ("system", @versions) {
         printf "%s %s%s\n",
             $version eq $current ? "*" : " ",
             $version,
-            $is_freezed->($version) ? $freezed : "";
+            $self->is_freezed($version, $vroot) ? $freezed : "";
     }
 }
 
@@ -110,6 +105,12 @@ sub unfreeze {
         my $mode = -x $file ? 0755 : 0644;
         chmod $mode, $file;
     }
+}
+
+sub is_freezed {
+    my (undef, $version, $vroot) = @_;
+    my $dir = File::Spec->catdir($vroot, $version);
+    -d $dir and ! -w $dir;
 }
 
 sub run {
