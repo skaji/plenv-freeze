@@ -38,6 +38,7 @@ sub parse_options {
     $parser->getoptions(
         "h|help" => sub { $self->show_help; exit 0 },
         "l|list" => sub { $self->show_versions; exit 0 },
+        "complete" => sub { $self->show_completions; exit 0 },
     ) or exit 1;
     @ARGV or die "Missing <version> argument, try 'plenv $self->{name} --help'\n";
     $self->{versions} = \@ARGV;
@@ -57,17 +58,27 @@ sub show_versions {
         chomp $current;
         $current;
     }->();
-    my $is_freezed = sub {
-        my $version = shift;
-        my $dir = File::Spec->catdir($vroot, $version);
-        -d $dir and ! -w $dir;
-    };
     my $freezed = -t STDOUT ? " \e[31mfreezed\e[m" : " freezed";
     for my $version ("system", @versions) {
         printf "%s %s%s\n",
             $version eq $current ? "*" : " ",
             $version,
-            $is_freezed->($version) ? $freezed : "";
+            $self->is_freezed($version, $vroot) ? $freezed : "";
+    }
+}
+
+# Provide plenv completions (this line required for plenv-completions)
+sub show_completions {
+    my $self = shift;
+    my $root = $ENV{PLENV_ROOT} || "$ENV{HOME}/.plenv";
+    my $vroot = File::Spec->catdir($root, "versions");
+    my @versions = 'system';
+    push @versions, split /\n/, `plenv-versions --bare`;
+    if ($self->{name} eq "unfreeze") {
+        print join "\n", grep $self->is_freezed($_, $vroot), @versions;
+    }
+    else {
+        print join "\n", grep !$self->is_freezed($_, $vroot), @versions;
     }
 }
 
@@ -102,6 +113,12 @@ sub unfreeze {
         my $mode = -x $file ? 0755 : 0644;
         chmod $mode, $file;
     }
+}
+
+sub is_freezed {
+    my (undef, $version, $vroot) = @_;
+    my $dir = File::Spec->catdir($vroot, $version);
+    -d $dir and ! -w $dir;
 }
 
 sub run {
