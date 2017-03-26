@@ -6,7 +6,7 @@
 #        plenv unfreeze <version>
 #
 #  -h, --help     show this help
-#  -l, --list     show perl versions with freezed or not
+#  -l, --list     show perl versions with frozen or not
 #
 use strict;
 use warnings;
@@ -48,22 +48,14 @@ sub show_versions {
     my $self = shift;
     my $root = $ENV{PLENV_ROOT} || "$ENV{HOME}/.plenv";
     my $vroot = File::Spec->catdir($root, "versions");
-    opendir my $dh, $vroot or die "$vroot: $!\n";
-    my @versions = grep { $_ ne "." and $_ ne ".." } readdir $dh;
-    my $current = sub {
-        my $file = File::Spec->catfile($root, "version");
-        return "" unless -f $file;
-        open my $fh, "<", $file or die "$file: $!\n";
-        my $current = <$fh>;
-        chomp $current;
-        $current;
-    }->();
-    my $freezed = -t STDOUT ? " \e[31mfreezed\e[m" : " freezed";
+    chomp( my @versions = `plenv versions --bare` );
+    chomp( my $current = `plenv version-name` );
+    my $frozen = -t STDOUT ? " \e[31mfrozen\e[m" : " frozen";
     for my $version ("system", @versions) {
         printf "%s %s%s\n",
             $version eq $current ? "*" : " ",
             $version,
-            $self->is_freezed($version, $vroot) ? $freezed : "";
+            $self->is_frozen($version, $vroot) ? $frozen : "";
     }
 }
 
@@ -75,10 +67,10 @@ sub show_completions {
     my @versions = 'system';
     push @versions, split /\n/, `plenv-versions --bare`;
     if ($self->{name} eq "unfreeze") {
-        print join "\n", grep $self->is_freezed($_, $vroot), @versions;
+        print join "\n", grep $self->is_frozen($_, $vroot), @versions;
     }
     else {
-        print join "\n", grep !$self->is_freezed($_, $vroot), @versions;
+        print join "\n", grep !$self->is_frozen($_, $vroot), @versions;
     }
 }
 
@@ -115,7 +107,7 @@ sub unfreeze {
     }
 }
 
-sub is_freezed {
+sub is_frozen {
     my (undef, $version, $vroot) = @_;
     my $dir = File::Spec->catdir($vroot, $version);
     -d $dir and ! -w $dir;
